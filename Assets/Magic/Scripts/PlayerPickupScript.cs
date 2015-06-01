@@ -4,18 +4,20 @@ using System.Collections;
 // Matthew Cormack
 // 30/05/2015
 //
+// Location:
 // For attachment to the player camera controller
 //
-// Allows the player to hold objects with PickupDescriptionScript components
+// Functionality:
+// - Allows the player to hold objects with PickupDescriptionScript components
 // in the left and right hands,
-// Allows for independant rotation of up to two held items
-// Allows crafting of items by rotating and combining
+// - Allows for independant rotation of up to two held items
 //
-// NOTE:
-// Requires two children of the player for item placement;
-// - LeftHandItem
-// - RightHandItem
+// Requirements:
+// - Requires two children of the player for item placement;
+//   - LeftHandItem
+//   - RightHandItem
 // These do not contain any components other than a transform
+// - Requires the PlayerCraftScript for the combining item functionality
 //
 // Buttons:
 // - Interact - default f - pickup/drop items in the current hand
@@ -43,6 +45,7 @@ public class PlayerPickupScript : MonoBehaviour
 	private int CurrentHand = 0;
 
 	// The items current held (left and right hands)
+	// Has a public getter/setter
 	private GameObject[] Item;
 
 	// The name of the hand transform object which corresponds to each hand
@@ -53,6 +56,9 @@ public class PlayerPickupScript : MonoBehaviour
 
 	// The current time a rotation button has been held, for delaying activation of item rotation
 	private float RotateButtonHeldTime = 0;
+
+	// Reference to the PlayerCraftScript created by this script upon the player
+	private PlayerCraftScript PlayerCraft;
 
 	// Use this for initialization
 	void Start()
@@ -65,6 +71,10 @@ public class PlayerPickupScript : MonoBehaviour
 				Item[item] = null;
 			}
 		}
+
+		// Create the player crafting functionality script
+		PlayerCraft = gameObject.AddComponent<PlayerCraftScript>();
+		PlayerCraft.PlayerPickup = this;
 	}
 
 	// Update is called once per frame
@@ -142,13 +152,7 @@ public class PlayerPickupScript : MonoBehaviour
 			{
 				Item[CurrentHand].transform.Rotate( transform.right, ( mousey * RotateRate ), Space.World );
 			}
-
-			// Testing crafting
-			//print( Vector3.Cross( Item[CurrentHand].transform.up, Item[CurrentHand].transform.right ) );
-			if ( Vector3.Distance( Vector3.Cross( Item[CurrentHand].transform.up, Item[CurrentHand].transform.right ), new Vector3( 0, 1, 0 ) ) < 0.3f )
-			{
-				print( "yes" );
-			}
+			print( Item[CurrentHand].transform.up );
 		}
 		else
 		{
@@ -194,7 +198,7 @@ public class PlayerPickupScript : MonoBehaviour
 					}
 				}
 				// Hasn't hit a pickup; drop if item is held
-				else
+				else if ( Item[CurrentHand] )
 				{
 					DropItem( hitinfo.point );
 				}
@@ -250,11 +254,7 @@ public class PlayerPickupScript : MonoBehaviour
 		Item[CurrentHand].GetComponent<Rigidbody>().isKinematic = false;
 
 		// Unparent from hand
-		Vector3 rotation = Item[CurrentHand].transform.localEulerAngles;
-		{
-			// Use yaw rotation for the direction of the object when placed, but others should match held rotation
-			rotation.y = Item[CurrentHand].transform.eulerAngles.y;
-		}
+		Vector3 rotation = Item[CurrentHand].transform.eulerAngles;
 		Item[CurrentHand].transform.parent = null;
 		Item[CurrentHand].transform.position = position;
 		Item[CurrentHand].transform.eulerAngles = rotation;
@@ -262,5 +262,16 @@ public class PlayerPickupScript : MonoBehaviour
 
 		// Cancel rotating if it was happening
 		Rotating = false;
+	}
+
+	public GameObject[] GetHeldItems()
+	{
+		return Item;
+	}
+
+	public void SetHeldItem( int index, GameObject item )
+	{
+		Transform handtransform = transform.FindChild( HandTransformName[index] );
+		PickupItem( item, handtransform );
 	}
 }
